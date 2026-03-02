@@ -1,7 +1,7 @@
-FROM openjdk:17
+FROM public.ecr.aws/amazoncorretto/amazoncorretto:17-alpine
+
 WORKDIR /app
 
-# Copy any jar from target folder
 COPY target/*.jar app.jar
 
 EXPOSE 8080
