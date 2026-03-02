@@ -4,46 +4,28 @@ env:
   variables:
     AWS_DEFAULT_REGION: ap-south-1
     REPOSITORY_URI: 342206309280.dkr.ecr.ap-south-1.amazonaws.com/codepipeline-project
-    CONTAINER_NAME: course-service   # MUST match ECS task definition container name
+    CONTAINER_NAME: codepipeline-project
 
 phases:
   pre_build:
     commands:
       - echo "Build started on `date`"
-      - echo "Running Maven build..."
       - mvn clean install
-
-      - echo "Logging in to Amazon ECR..."
-      - aws --version
       - aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin $REPOSITORY_URI
-
-      - COMMIT_HASH=$(echo $CODEBUILD_RESOLVED_SOURCE_VERSION | cut -c 1-7)
-      - IMAGE_TAG=build-$(echo $CODEBUILD_BUILD_ID | awk -F":" '{print $2}')
-
-      - echo REPOSITORY_URI=$REPOSITORY_URI
-      - echo IMAGE_TAG=$IMAGE_TAG
+      - IMAGE_TAG=$(echo $CODEBUILD_RESOLVED_SOURCE_VERSION | cut -c 1-7)
 
   build:
     commands:
-      - echo "Building Docker image..."
-      - docker build -t $REPOSITORY_URI:latest .
-      - docker tag $REPOSITORY_URI:latest $REPOSITORY_URI:$IMAGE_TAG
-      - echo "Listing Docker images..."
-      - docker images
+      - docker build -t $REPOSITORY_URI:$IMAGE_TAG .
+      - docker tag $REPOSITORY_URI:$IMAGE_TAG $REPOSITORY_URI:latest
 
   post_build:
     commands:
-      - echo "Pushing Docker images..."
-      - docker push $REPOSITORY_URI:latest
       - docker push $REPOSITORY_URI:$IMAGE_TAG
-
-      - echo "Generating imagedefinitions.json..."
+      - docker push $REPOSITORY_URI:latest
       - printf '[{"name":"%s","imageUri":"%s"}]' $CONTAINER_NAME $REPOSITORY_URI:$IMAGE_TAG > imagedefinitions.json
-
-      - echo "Printing imagedefinitions.json..."
       - cat imagedefinitions.json
 
 artifacts:
   files:
     - imagedefinitions.json
-    - target/course-service.jar
